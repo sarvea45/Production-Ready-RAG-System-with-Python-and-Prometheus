@@ -1,0 +1,108 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - rag_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_PERSIST_DIRECTORY=/chroma_data
+      - LLM_PROVIDER=groq
+      - OLLAMA_URL=http://ollama:11434
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env.example
+    volumes:
+      - chroma_data:/chroma_data
+    networks:
+      - rag_net
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_PERSIST_DIRECTORY=/chroma_data
+      - LLM_PROVIDER=groq
+      - OLLAMA_URL=http://ollama:11434
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env.example
+    volumes:
+      - chroma_data:/chroma_data
+    networks:
+      - rag_net
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - rag_net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - rag_net
+    depends_on:
+      - prometheus
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    networks:
+      - rag_net
+    volumes:
+      - ollama_data:/root/.ollama
+
+networks:
+  rag_net:
+    driver: bridge
+
+volumes:
+  chroma_data:
+  prometheus_data:
+  grafana_data:
+  ollama_data:

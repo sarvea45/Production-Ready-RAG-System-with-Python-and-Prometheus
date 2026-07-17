@@ -1,0 +1,41 @@
+{
+  "title": "RAG System Production Dashboard",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "System Health: RPS & Errors",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(api_requests_total_total[1m]))", "legendFormat": "RPS"},
+        {"expr": "sum(rate(api_requests_total_total{http_status=~\"5..\"}[1m]))", "legendFormat": "Errors"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency Distribution",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.99, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p99"},
+        {"expr": "histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.50, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p50"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Token Consumption",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(llm_token_usage_total_total{token_type=\"prompt\"}[5m]))", "legendFormat": "Prompt Tokens/s"},
+        {"expr": "sum(rate(llm_token_usage_total_total{token_type=\"completion\"}[5m]))", "legendFormat": "Completion Tokens/s"}
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Cache Hit Rate",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(rag_cache_hits_total_total{outcome=\"hit\"}[5m])) / (sum(rate(rag_cache_hits_total_total[5m])) > 0)", "legendFormat": "Hit Rate"}
+      ]
+    }
+  ]
+}
