@@ -44,7 +44,7 @@ class LLMClient:
                 return "Error generating response from local LLM."
                 
         elif self.provider in ["openai", "groq"]:
-            model_name = "llama3-8b-8192" if self.provider == "groq" else "gpt-3.5-turbo"
+            model_name = "llama-3.1-8b-instant" if self.provider == "groq" else "gpt-3.5-turbo"
             
             response = self.client.chat.completions.create(
                 model=model_name,
